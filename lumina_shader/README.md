@@ -1,4 +1,4 @@
-# Lumina Shader v1.1
+# Lumina Shader v1.2
 
 Paket shader native berbasis WebGPU Shading Language (WGSL) untuk **Horizon Client** (Shader API 0.1), dioptimalkan untuk performa 60 FPS pada kartu grafis terintegrasi (iGPU) seperti AMD Radeon 660M/680M.
 
@@ -6,7 +6,7 @@ Paket shader native berbasis WebGPU Shading Language (WGSL) untuk **Horizon Clie
 Shader ini dibuat karena sebagian besar shader pack yang tersedia untuk Horizon Client terasa terlalu berat untuk dijalankan di laptop pengembang. Lumina Shader dirancang dari awal dengan efisiensi tinggi agar visual tetap modern dan sinematik tanpa penurunan frame rate yang tajam.
 
 ## Status Rilis
-Ini merupakan rilis versi awal (v1.1), sehingga kemungkinan masih terdapat bug atau elemen visual yang belum sempurna di beberapa kondisi lingkungan.
+Ini merupakan rilis versi awal (v1.2), sehingga kemungkinan masih terdapat bug atau elemen visual yang belum sempurna di beberapa kondisi lingkungan.
 
 ## Fitur Utama
 - **Warm Cinematic Grading & Rich Golden Hour**: ACES filmic tone mapping dengan bayangan bersuhu dingin lembut dan cahaya Golden Hour keemasan di pagi serta sore hari.

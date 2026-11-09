@@ -1,7 +1,7 @@
 schema = 1
 id = "lumina_shader"
 name = "Lumina Shader"
-version = "1.1"
+version = "1.2"
 api = "0.1"
 description = "Warm Cinematic shader pack for Horizon: rich golden hour, aurora borealis night sky, cozy rain, quarter-res godrays & bloom, dynamic hand/offhand torch light, crystal water, and glowing ores. Tuned for 60 FPS on AMD Radeon 660M/680M."
 authors = ["yudz"]

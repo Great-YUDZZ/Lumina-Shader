@@ -42,11 +42,13 @@ fn post(input: PostInput) -> vec4<f32> {
         let to_sun = (sun_uv - input.uv) * vec2<f32>(aspect, 1.0);
         let sun_dist = length(to_sun);
 
-        // Radial march toward the sun on screen (12 steps): bright sky gaps between leaves/branches
-        // cast long golden crepuscular rays across the canopy and foreground.
-        let march_delta = (sun_uv - input.uv) / 12.0 * min(1.0, 0.95 / max(sun_dist, 0.001));
+        // Radial march toward the sun on screen (12 steps): bright sky gaps between 3D clouds,
+        // leaves, and hills cast long golden crepuscular rays across the sky and foreground,
+        // while solid 3D clouds (`depth_at(sample_uv) > 0.0`) block the rays and cast cloud shadows.
+        let march_delta = (sun_uv - input.uv) / 12.0 * min(1.0, 1.12 / max(sun_dist, 0.001));
         var sample_uv = input.uv + march_delta * jitter;
         var open_sky_sum = 0.0;
+        var occluded_steps = 0.0;
         var decay = 1.0;
 
         for (var i = 0; i < 12; i++) {
@@ -54,38 +56,42 @@ fn post(input: PostInput) -> vec4<f32> {
             let in_screen = all(sample_uv >= vec2<f32>(0.001)) && all(sample_uv <= vec2<f32>(0.999));
             let is_open_sky = in_screen && depth_at(sample_uv) == 0.0;
             let d_sun = length((sample_uv - sun_uv) * vec2<f32>(aspect, 1.0));
-            let sun_prox = 0.35 + 0.65 * exp(-d_sun * 3.2);
+            let sun_prox = 0.32 + 0.68 * exp(-d_sun * 2.8);
             open_sky_sum += select(0.0, decay * sun_prox, is_open_sky);
+            occluded_steps += select(1.0, 0.0, is_open_sky);
             decay *= 0.94;
         }
 
-        let radial_falloff = 1.0 - smoothstep(0.0, 1.15, sun_dist);
-        // Over terrain/leaves (`!is_sky`) shafts show at full strength; over open sky they stay subtle so sky doesn't wash out.
-        let sky_suppress = select(1.0, 0.22, is_sky);
-        let radial_shafts = (open_sky_sum / 12.0) * radial_falloff * sky_suppress * 0.72;
+        let radial_falloff = 1.0 - smoothstep(0.0, 1.20, sun_dist);
+        // Allow radial beams to shine across open sky gaps (`0.86`) so 3D clouds visibly split the sunbeams,
+        // while keeping solid cloud interiors darker when occluded along the sun ray.
+        let sky_beam_weight = select(1.0, 0.86, is_sky);
+        let cloud_occl_contrast = mix(1.0, 0.65, clamp(occluded_steps / 12.0, 0.0, 1.0));
+        let radial_shafts = (open_sky_sum / 12.0) * radial_falloff * sky_beam_weight * cloud_occl_contrast * 0.78;
 
-        // Warm sun glare/halo when the sun disc itself peeks through gaps in leaves or clouds
+        // Warm sun glare/halo when the sun disc itself peeks through gaps in leaves or 3D clouds
         let sun_on_screen = all(sun_uv >= vec2<f32>(0.0)) && all(sun_uv <= vec2<f32>(1.0));
         let sun_visible = select(0.0, 1.0, sun_on_screen && depth_at(sun_uv) == 0.0);
-        let glare = (exp(-sun_dist * sun_dist * 45.0) * 0.45 + exp(-sun_dist * 4.5) * 0.16) * sun_visible;
+        let glare = (exp(-sun_dist * sun_dist * 45.0) * 0.42 + exp(-sun_dist * 4.5) * 0.14) * sun_visible;
 
         total_rays += shaft_col * (radial_shafts + glare) * look_sun;
     }
 
-    // --- Part 2: Shadow-Map Volumetric Canopy Shafts (3D Air Scattering) ---
-    if frame.has_shadow != 0u {
-        let sample_depth = select(input.depth, 0.002, is_sky);
-        let world_vec = view_position(input.uv, sample_depth);
+    // --- Part 2: Shadow-Map Volumetric Canopy Shafts (Near-Camera 3D Air Scattering) ---
+    // Restricted to near-camera geometry (`!is_sky` and `ray_dist < 64.0`) so 3D clouds at high
+    // altitude are never washed out by canopy scatter and sky/cloud pixels skip all 6 shadow lookups.
+    if frame.has_shadow != 0u && !is_sky {
+        let world_vec = view_position(input.uv, input.depth);
         let ray_dist = length(world_vec);
-        let ray_dir = world_vec / max(ray_dist, 1e-4);
 
-        let cos_theta = max(dot(ray_dir, l), 0.0);
-        let phase = 0.28 + 0.72 * pow(cos_theta, 2.2);
+        if ray_dist > 1.5 && ray_dist < 64.0 {
+            let ray_dir = world_vec / max(ray_dist, 1e-4);
+            let cos_theta = max(dot(ray_dir, l), 0.0);
+            let phase = 0.28 + 0.72 * pow(cos_theta, 2.2);
 
-        // Quadratic distribution (`u * u * max_trace`) concentrates samples within 2..36 blocks of
-        // the camera, right where sunbeams slice through forest and jungle canopies.
-        let max_trace = min(ray_dist, min(frame.shadow_distance * 0.85, 40.0));
-        if max_trace > 1.5 {
+            // Quadratic distribution (`u * u * max_trace`) concentrates samples within 2..36 blocks of
+            // the camera, right where sunbeams slice through forest and jungle canopies.
+            let max_trace = min(ray_dist, min(frame.shadow_distance * 0.85, 40.0));
             var accum_lit = 0.0;
             var total_w = 0.0;
             var crossings = 0.0;
@@ -108,9 +114,8 @@ fn post(input: PostInput) -> vec4<f32> {
             let lit_share = accum_lit / max(total_w, 1e-3);
             // Boosts shafts that cross from light into shadow (dappled beams under trees)
             let contrast_boost = 0.35 + 0.65 * clamp(crossings * 0.75, 0.0, 1.0);
-            let dist_weight = smoothstep(2.0, 16.0, max_trace);
-            let vol_sky_atten = select(1.0, 0.18, is_sky);
-            let vol_scatter = lit_share * contrast_boost * phase * dist_weight * vol_sky_atten * 0.38;
+            let dist_weight = smoothstep(2.0, 16.0, max_trace) * (1.0 - smoothstep(44.0, 64.0, ray_dist));
+            let vol_scatter = lit_share * contrast_boost * phase * dist_weight * 0.38;
 
             total_rays += shaft_col * vol_scatter;
         }

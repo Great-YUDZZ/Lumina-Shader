@@ -28,14 +28,14 @@ fn post(input: PostInput) -> vec4<f32> {
     let night = night_factor();
 
     // Synchronize entity/mob brightness at night: Horizon renders entities with vanilla's unshaded
-    // night lightmap, whereas solid terrain writes `scene_surface` (`surface_at(texel).present`).
+    // night lightmap, whereas solid terrain writes `scene_surface` (`surface_at(texel).present == true`).
     if night > 0.01 && input.depth > 0.0001 {
         let surf = surface_at(vec2<i32>(input.uv * frame.resolution));
         if !surf.present {
             let luma_ent = luminance(c);
-            let non_emissive = 1.0 - smoothstep(0.38, 0.78, luma_ent);
-            let mob_scale = mix(1.0, mix(0.68, 0.44, night_darkness), night * non_emissive);
-            let mob_night_tint = mix(vec3<f32>(1.0), vec3<f32>(0.82, 0.90, 1.04), night * non_emissive * 0.55);
+            let entity_mask = smoothstep(0.032, 0.085, luma_ent) * (1.0 - smoothstep(0.36, 0.76, luma_ent));
+            let mob_scale = mix(1.0, mix(0.48, 0.30, night_darkness), night * entity_mask);
+            let mob_night_tint = mix(vec3<f32>(1.0), vec3<f32>(0.78, 0.88, 1.05), night * entity_mask * 0.65);
             c *= mob_scale * mob_night_tint;
         }
     }
