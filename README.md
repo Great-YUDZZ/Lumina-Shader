@@ -1,4 +1,4 @@
-# Lumina Shader v1.3
+# Lumina Shader v1.4
 
 Paket shader native berbasis WebGPU Shading Language (WGSL) untuk Horizon Client (Shader API 0.1).
 
@@ -12,14 +12,15 @@ Banyak shader pack menyebabkan penurunan frame rate yang tajam (drop hingga 20 s
 
 ---
 
-## Catatan Rilis Versi 1.3
+## Catatan Rilis Versi 1.4
 
-Rilis versi 1.3 membawa optimalisasi performa dan peningkatan visual menyeluruh:
-- Optimalisasi alur rendering dan penghapusan target kedua `set_surface` agar rendering pass menyatu dan ramah VRAM.
-- Peningkatan suasana hujan cozy lo-fi dengan kabut tebal berlapis dan langit mendung yang natural.
-- Culling cerdas pada perhitungan shadow, wetness, ore glow, dan block light untuk objek yang terhalang kabut tebal atau di luar jarak optimal.
-- Dukungan dynamic hand/offhand lighting yang lebih stabil dan responsif.
-- Jarak bayangan default 32 blok untuk menghemat beban geometri chunk tanpa mengorbankan ketajaman bayangan dekat.
+Rilis versi 1.4 membawa upgrade signifikan pada kualitas godrays dan air realistis tanpa mengorbankan performa:
+- **Godrays Lebar & Adaptif (Shader Horizon v2)**: Mengadopsi algoritma raymarch radial screen-space dari Horizon Shader v2 Golden Lite dengan sudut tangkapan lebih luas (`smoothstep 0.02..0.45`), opsi sampel dinamis 8 sampai 24 langkah (default 16), jangkauan radial 1.45, dan mask langit teruji presisi tinggi (`depth <= 0.00001`).
+- **Air Realistis Multi-Harmonik**: Gelombang multi-oktaf (swell diagonal dan riak halus) dengan peredaman LOD di kejauhan agar tidak ada shimmering/aliasing.
+- **Dynamic Underwater Caustics**: Pola bias cahaya matahari bergerak pada dasar air dangkal yang terkena sinar matahari langsung.
+- **Busa Bibir Pantai (Shoreline Foam)**: Buih ombak putih dinamis di garis batas pertemuan air dengan pantai pasir dan daratan.
+- **Penyerapan Kedalaman Fisik (Beer-Lambert)**: Atenuasi selektif panjang gelombang cahaya (warna merah terserap cepat), menghasilkan air dangkal toska kristal dan laut dalam biru tua pekat.
+- **Optimasi Bandwidth Air Jauh**: Air di atas 64 blok langsung melakukan early-out ke refleksi langit dan kabut tanpa membebani memory bandwidth untuk membaca tekstur opaque depth/color dan inversi matriks.
 
 ---
 
@@ -39,7 +40,7 @@ Rilis versi 1.3 membawa optimalisasi performa dan peningkatan visual menyeluruh:
 ## Cara Pemasangan
 
 ### Metode 1: Menggunakan Berkas Paket (.hshader)
-1. Unduh berkas `lumina_shader-1.3.hshader` dari menu Releases di repositori ini.
+1. Unduh berkas `lumina_shader-1.4.hshader` dari menu Releases di repositori ini.
 2. Salin berkas tersebut ke dalam folder `shaderpacks/` pada direktori instalasi instance Horizon Client Anda.
 3. Buka Horizon Client, masuk ke menu **Options > Video Settings > Shaders > Shader Packs**.
 4. Pilih **Lumina Shader** dari daftar.
