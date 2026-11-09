@@ -25,7 +25,14 @@ fn post(input: PostInput) -> vec4<f32> {
     let day = daylight();
     let outdoor = smoothstep(0.10, 0.55, frame.eye_light_smooth.y);
     let clear = 1.0 - frame.rain * 0.92;
-    let ray_amount = day * outdoor * clear * godray_strength * look_sun;
+
+    // Sun occlusion by procedural clouds
+    let sun_cloud_t = max(0.0, 550.0 / max(frame.sun_direction.y, 0.08));
+    let sun_cloud_xz = frame.camera_position.xz * 0.5 + frame.sun_direction.xz * sun_cloud_t;
+    let sun_cloud_cover = cloud_density_at(sun_cloud_xz);
+    let sun_cloud_trans = 1.0 - sun_cloud_cover * 0.82;
+
+    let ray_amount = day * outdoor * clear * godray_strength * look_sun * sun_cloud_trans;
     if ray_amount <= 0.005 {
         return vec4<f32>(0.0, 0.0, 0.0, 1.0);
     }

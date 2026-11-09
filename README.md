@@ -14,25 +14,25 @@ Banyak shader pack menyebabkan penurunan frame rate yang tajam (drop hingga 20 s
 
 ## Catatan Rilis Versi 1.4
 
-Rilis versi 1.4 membawa upgrade signifikan pada kualitas godrays dan air realistis tanpa mengorbankan performa:
-- **Godrays Lebar & Adaptif (Shader Horizon v2)**: Mengadopsi algoritma raymarch radial screen-space dari Horizon Shader v2 Golden Lite dengan sudut tangkapan lebih luas (`smoothstep 0.02..0.45`), opsi sampel dinamis 8 sampai 24 langkah (default 16), jangkauan radial 1.45, dan mask langit teruji presisi tinggi (`depth <= 0.00001`).
-- **Air Realistis Multi-Harmonik**: Gelombang multi-oktaf (swell diagonal dan riak halus) dengan peredaman LOD di kejauhan agar tidak ada shimmering/aliasing.
-- **Dynamic Underwater Caustics**: Pola bias cahaya matahari bergerak pada dasar air dangkal yang terkena sinar matahari langsung.
-- **Busa Bibir Pantai (Shoreline Foam)**: Buih ombak putih dinamis di garis batas pertemuan air dengan pantai pasir dan daratan.
-- **Penyerapan Kedalaman Fisik (Beer-Lambert)**: Atenuasi selektif panjang gelombang cahaya (warna merah terserap cepat), menghasilkan air dangkal toska kristal dan laut dalam biru tua pekat.
-- **Optimasi Bandwidth Air Jauh**: Air di atas 64 blok langsung melakukan early-out ke refleksi langit dan kabut tanpa membebani memory bandwidth untuk membaca tekstur opaque depth/color dan inversi matriks.
+Rilis versi 1.4 membawa upgrade visual besar pada sistem awan, langit, godrays, dan air realistis:
+- **Awan Volumetrik Alami & Realistis**: Menggantikan awan kotak vanilla dengan awan prosedural 4 oktaf FBM dan domain warping. Memiliki volume 3D, self-shadowing, silver lining di tepian matahari, pendaran jingga senja, dan kelabu saat hujan.
+- **Matahari Realistis & Oklusi Awan**: Matahari bulat dengan limb darkening dan korona yang dapat tertutup secara alami saat gumpalan awan melintas di depannya, lengkap dengan peredaman godrays otomatis.
+- **Bayangan Awan Dinamis di Daratan (Cloud Shadows)**: Awan memproyeksikan bayangan lembut di atas tanah, bukit, pepohonan, dan permukaan air secara real-time mengikuti arah datangnya sinar matahari.
+- **Air Realistis & Underwater Caustics**: Gelombang multi-oktaf (swell diagonal dan riak halus) dengan peredaman LOD di kejauhan, dynamic underwater caustics di dasar perairan dangkal, busa bibir pantai (shoreline foam), penyerapan fisik Beer-Lambert, dan pembenahan alpha blending agar pantulan serta refraksi tampak jernih kontras.
+- **Godrays Lebar & Adaptif (Porting Shader Horizon v2)**: Algoritma raymarch radial screen-space dengan sudut tangkapan lebih luas (`smoothstep 0.02..0.45`), opsi sampel dinamis 8 sampai 24 langkah (default 16), jangkauan radial 1.45, dan mask langit presisi tinggi.
+- **Optimasi Bandwidth Air Jauh**: Air di atas 64 blok langsung melakukan early-out ke refleksi langit dan kabut tanpa membebani memory bandwidth iGPU.
 
 ---
 
 ## Fitur Utama
 
 - **Pewarnaan Sinematik Hangat & Golden Hour (ACES Filmic)**: Tone mapping berbasis kurva filmik ACES dengan cahaya Golden Hour keemasan di pagi serta sore hari dan bayangan bertingkat biru-ungu lembut (cool shadow tint). Tampilan bersih tanpa efek vignette yang memotong sudut pandang.
+- **Awan Volumetrik & Cloud Shadows**: Awan cumulus 3D organik yang dinamis menutupi matahari dan memancarkan bayangan bergerak di daratan dan permukaan air.
 - **Aurora Borealis di Langit Malam**: Langit malam dihiasi tirai Aurora Borealis hijau zamrud ke biru-toska dengan gradasi ungu di bagian atas yang mengalir pelan dan ikut terpantul di permukaan air, dilengkapi dengan taburan bintang berputar.
 - **Suasana Hujan Cozy Lo-Fi**: Saat turun hujan, langit dan kabut berubah menjadi biru-abu sejuk lembut (slate-blue) dengan rintik hujan tipis yang tenang, sementara cahaya obor dan lentera memancarkan kehangatan ekstra yang memantul halus di permukaan blok basah.
 - **Dynamic Hand & Offhand Torch Light**: Cahaya dinamis saat memegang obor atau lentera di tangan kanan (main hand), tangan kiri (offhand), maupun saat item dilempar ke tanah tanpa perlu menaruh blok. Menggunakan perataan radius per-piksel, efek kedipan api tipis, dan warna akurat per tipe item (Torch kuning hangat, Soul Torch biru sian, Redstone Torch merah, Lava Bucket oranye api, Glowstone emas, dan Amethyst/Ender Chest ungu).
-- **Awan Kotak 3D Hardware Horizon**: Terintegrasi langsung dengan sistem mesh awan kotak 3D Horizon yang di-cache di memori, sehingga memiliki dimensi volume atas, samping, dan bawah yang solid dengan biaya 0 ms di shader langit.
 - **Hybrid Volumetric Godrays & Soft Bloom Quarter-Resolution**: Berjalan pada skala 0.25x (1/16 jumlah piksel) dengan tent upsampling untuk memberikan sorot sinar matahari di sela pepohonan dan pendaran cahaya halus pada sumber api/lava tanpa membebani kartu grafis.
-- **Air Jernih Realistis**: Menampilkan dasar perairan secara transparan dengan distorsi ombak lembut, penyerapan warna toska berdasarkan kedalaman (depth absorption), Schlick Fresnel, dan pantulan kilau matahari.
+- **Air Realistis & Underwater Caustics**: Menampilkan dasar perairan secara transparan dengan distorsi ombak lembut, caustics cahaya matahari bergerak di pasir dangkal, penyerapan warna toska Beer-Lambert, busa pantai, Schlick Fresnel, dan pantulan kilau matahari.
 - **Glowing Ores di Tempat Gelap**: Urat mineral pada blok bijih (diamond, gold, redstone, emerald, lapis, copper, iron, quartz, nether gold, ancient debris) memancarkan pendaran cahaya khas di dalam gua gelap, sementara bagian batu/deepslate di sekitarnya tetap gelap alami (batu bara/coal ore sengaja dibiarkan tidak bercahaya).
 
 ---

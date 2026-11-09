@@ -53,6 +53,47 @@ fn noise2d(p: vec2<f32>) -> f32 {
     return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
 }
 
+// 4-octave Fractal Brownian Motion for billowing clouds.
+fn cloud_fbm(p: vec2<f32>) -> f32 {
+    var total = 0.0;
+    var amp = 0.50;
+    var q = p;
+    for (var i = 0; i < 4; i++) {
+        total += noise2d(q) * amp;
+        q = q * 2.12 + vec2<f32>(1.7, 9.2);
+        amp *= 0.50;
+    }
+    return total * 1.066;
+}
+
+// Global volumetric cloud density at a given world XZ coordinate.
+fn cloud_density_at(world_xz: vec2<f32>) -> f32 {
+    let wind = vec2<f32>(frame.time * 2.2, frame.time * 0.7);
+    let p = (world_xz + wind) * 0.0016;
+
+    // Domain warp pushes round noise blobs into curling, billowing cumulus shapes
+    let warp_x = noise2d(p * 1.25 + vec2<f32>(2.3, 7.7));
+    let warp_y = noise2d(p * 1.25 + vec2<f32>(9.2, 3.4));
+    let q = p + (vec2<f32>(warp_x, warp_y) - 0.5) * 0.62;
+
+    let n = cloud_fbm(q);
+    let coverage = clamp(0.50 + frame.rain * 0.45, 0.0, 0.96);
+    let threshold = mix(0.70, 0.25, coverage);
+    return smoothstep(threshold, threshold + 0.16, n);
+}
+
+// Cloud shadow factor on terrain / water (1.0 = full sunlight, ~0.35 = in cloud shadow).
+fn sample_cloud_shadow(world_pos: vec3<f32>, sky_light: f32) -> f32 {
+    if frame.dimension != 0 || sky_light < 0.10 || frame.light_direction.y <= 0.02 {
+        return 1.0;
+    }
+    let cloud_alt = 550.0;
+    let ray_t = max(0.0, (cloud_alt - world_pos.y) / max(frame.light_direction.y, 0.08));
+    let cloud_xz = world_pos.xz + frame.light_direction.xz * ray_t;
+    let density = cloud_density_at(cloud_xz);
+    return 1.0 - density * 0.65;
+}
+
 // Direct light color (sun by day, moon by night) with rich Golden Hour and cozy slate-blue rain.
 fn direct_light_color(warmth: f32) -> vec3<f32> {
     let day = daylight();

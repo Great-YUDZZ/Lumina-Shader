@@ -14,12 +14,15 @@ fn material(input: MaterialInput) -> Surface {
     let facing = dot(n, l);
 
     // Water surfaces take the dedicated emerald-blue glassy water path
-    // Only sample water sun shadow within 36 blocks and when not in heavy rain
+    // Sample water sun shadow and cloud shadow
     if input.fluid == 1u {
         var water_sh = vec3<f32>(1.0);
         if frame.rain < 0.80 && dot(input.position, input.position) < 1296.0 {
             water_sh = sample_shadow_fast(input.position, vec3<f32>(0.0, 1.0, 0.0));
         }
+        let world_p = input.position + frame.camera_position;
+        let cloud_sh = sample_cloud_shadow(world_p, input.light.y);
+        water_sh *= cloud_sh;
         return shade_water(input, water_sh);
     }
 
@@ -104,7 +107,9 @@ fn material(input: MaterialInput) -> Surface {
         let outdoor_mask = smoothstep(0.05, 0.45, input.light.y);
         let day_sun_power = SUN_INTENSITY * (1.0 + tw * 0.30 * sun_warmth) * rain_sun_atten;
         let direct_col = direct_light_color(sun_warmth) * foliage_tint * mix(0.36 * night_scale, day_sun_power, day);
-        direct_term = direct_col * ndl * shadow_vis * outdoor_mask;
+        let world_p = input.position + frame.camera_position;
+        let cloud_sh = sample_cloud_shadow(world_p, input.light.y);
+        direct_term = direct_col * ndl * shadow_vis * outdoor_mask * cloud_sh;
     }
 
     // Colored block light & smooth per-pixel handheld/offhand torch light (skip if buried in thick far fog)

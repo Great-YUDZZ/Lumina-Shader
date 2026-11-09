@@ -194,6 +194,8 @@ fn shade_water(input: MaterialInput, shadow_vis: vec3<f32>) -> Surface {
         final_water = mix(final_water, fog_c, fog_f);
     }
 
-    let base_alpha = select(mix(0.72, 0.92, fresnel), mix(0.55, 0.90, max(fresnel, 1.0 - absorption.g * 0.55)), has_refr);
+    // When refraction is active, the shader already blends the background internally,
+    // so alpha must be 1.0 to prevent the engine from double-blending and washing out water.
+    let base_alpha = select(mix(0.75, 0.95, fresnel), 1.0, has_refr);
     return Surface(vec4<f32>(max(final_water, vec3<f32>(0.0)), base_alpha));
 }
