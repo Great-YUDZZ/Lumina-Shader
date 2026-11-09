@@ -27,19 +27,6 @@ fn post(input: PostInput) -> vec4<f32> {
     let tw = twilight();
     let night = night_factor();
 
-    // Synchronize entity/mob brightness at night: Horizon renders entities with vanilla's unshaded
-    // night lightmap, whereas solid terrain writes `scene_surface` (`surface_at(texel).present == true`).
-    if night > 0.01 && input.depth > 0.0001 {
-        let surf = surface_at(vec2<i32>(input.uv * frame.resolution));
-        if !surf.present {
-            let luma_ent = luminance(c);
-            let entity_mask = smoothstep(0.032, 0.085, luma_ent) * (1.0 - smoothstep(0.36, 0.76, luma_ent));
-            let mob_scale = mix(1.0, mix(0.48, 0.30, night_darkness), night * entity_mask);
-            let mob_night_tint = mix(vec3<f32>(1.0), vec3<f32>(0.78, 0.88, 1.05), night * entity_mask * 0.65);
-            c *= mob_scale * mob_night_tint;
-        }
-    }
-
     // Add quarter-res bloom and smoothed volumetric godrays
     if bloom_strength > 0.001 {
         c += textureSampleLevel(bloom_b, linear_sampler, input.uv, 0.0).rgb * bloom_strength;
@@ -47,9 +34,16 @@ fn post(input: PostInput) -> vec4<f32> {
     let ray_col = sample_rays_smooth(input.uv);
     c += ray_col * (vec3<f32>(1.0) - min(c, vec3<f32>(1.0)) * 0.48);
 
-    // Calmer daytime exposure (~16% softer glare at noon) while keeping night and caves readable
+    // Unified daytime & nighttime exposure balance:
+    // Since outdoor night terrain in `material.wgsl` is matched to vanilla's entity lightmap (`input.lightmap`),
+    // scaling non-emissive night luminance here keeps both terrain and mobs at the exact same mood without
+    // needing a 128-bit `scene_surface` target!
     let day_balance = mix(1.0, 0.85, day * (1.0 - tw * 0.30));
-    c *= exposure * day_balance;
+    let luma_raw = luminance(c);
+    let non_emissive = 1.0 - smoothstep(0.42, 0.85, luma_raw);
+    let night_balance = mix(1.0, mix(0.84, 0.58, night_darkness), night * non_emissive * step(0.0001, input.depth));
+    let night_cool_tint = mix(vec3<f32>(1.0), vec3<f32>(0.88, 0.94, 1.05), night * non_emissive * step(0.0001, input.depth) * 0.45);
+    c *= exposure * day_balance * night_balance * night_cool_tint;
 
     // Rich Golden Hour & Cool Shadow split-toning
     let golden_factor = sun_warmth * mix(0.24, 0.96, tw) * day * (1.0 - frame.rain * 0.72);

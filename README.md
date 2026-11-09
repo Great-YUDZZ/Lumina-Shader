@@ -1,4 +1,4 @@
-# Lumina Shader v1.2
+# Lumina Shader v1.3
 
 Paket shader native berbasis WebGPU Shading Language (WGSL) untuk Horizon Client (Shader API 0.1).
 
@@ -12,11 +12,14 @@ Banyak shader pack menyebabkan penurunan frame rate yang tajam (drop hingga 20 s
 
 ---
 
-## Catatan Rilis Awal (Versi 1.2)
+## Catatan Rilis Versi 1.3
 
-Ini merupakan rilis versi awal (v1.2). Pengujian intensif telah dilakukan pada konfigurasi hardware pengembang, namun kemungkinan masih terdapat bug minor, ketidaksesuaian rendering pada kombinasi blok tertentu, atau tampilan visual yang belum sepenuhnya sempurna di beberapa situasi lingkungan.
-
-Jika Anda menemukan kejanggalan visual, penurunan performa, atau kesalahan kompilasi shader, silakan laporkan melalui menu Issues di repositori ini.
+Rilis versi 1.3 membawa optimalisasi performa dan peningkatan visual menyeluruh:
+- Optimalisasi alur rendering dan penghapusan target kedua `set_surface` agar rendering pass menyatu dan ramah VRAM.
+- Peningkatan suasana hujan cozy lo-fi dengan kabut tebal berlapis dan langit mendung yang natural.
+- Culling cerdas pada perhitungan shadow, wetness, ore glow, dan block light untuk objek yang terhalang kabut tebal atau di luar jarak optimal.
+- Dukungan dynamic hand/offhand lighting yang lebih stabil dan responsif.
+- Jarak bayangan default 32 blok untuk menghemat beban geometri chunk tanpa mengorbankan ketajaman bayangan dekat.
 
 ---
 
@@ -36,7 +39,7 @@ Jika Anda menemukan kejanggalan visual, penurunan performa, atau kesalahan kompi
 ## Cara Pemasangan
 
 ### Metode 1: Menggunakan Berkas Paket (.hshader)
-1. Unduh berkas `lumina_shader-1.2.hshader` dari menu Releases di repositori ini.
+1. Unduh berkas `lumina_shader-1.3.hshader` dari menu Releases di repositori ini.
 2. Salin berkas tersebut ke dalam folder `shaderpacks/` pada direktori instalasi instance Horizon Client Anda.
 3. Buka Horizon Client, masuk ke menu **Options > Video Settings > Shaders > Shader Packs**.
 4. Pilih **Lumina Shader** dari daftar.

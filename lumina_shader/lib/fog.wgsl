@@ -25,10 +25,12 @@ fn atmospheric_fog_color(view_dir: vec3<f32>, warmth: f32, night_dark: f32) -> v
     var col = mix(day_fog, twilight_fog, tw);
     col = mix(col, night_fog, night);
 
-    // Cozy Lo-Fi Slate-Blue rain mist
-    let rain_day = mix(vec3<f32>(0.35, 0.43, 0.53), vec3<f32>(0.46, 0.44, 0.48), tw * warmth * 0.55);
-    let rain_fog = mix(vec3<f32>(0.08, 0.13, 0.20) * night_scale, rain_day, day);
-    return mix(col, rain_fog, frame.rain * 0.88);
+    // Dark Overcast Cozy Lo-Fi Slate-Blue rain mist (matches rain_horiz_day in sky.wgsl)
+    let thunder_darken = mix(1.0, 0.62, frame.thunder);
+    let rain_day = mix(vec3<f32>(0.18, 0.23, 0.30), vec3<f32>(0.22, 0.22, 0.27), tw * warmth * 0.5) * thunder_darken;
+    let rain_fog = mix(vec3<f32>(0.05, 0.08, 0.13) * night_scale, rain_day, day);
+    let rain_cover = smoothstep(0.0, 1.0, frame.rain) * 0.97;
+    return mix(col, rain_fog, rain_cover);
 }
 
 // Computes how much atmospheric fog (0..1) applies at `dist` blocks with `sky_light` (0..1).
@@ -51,19 +53,22 @@ fn compute_fog_factor(dist: f32, sky_light: f32, strength_opt: f32) -> f32 {
     }
 
     let tw = twilight();
-    let rain_w = max(frame.rain, frame.thunder);
+    let rain_w = clamp(max(frame.rain, frame.thunder), 0.0, 1.0);
     let night_w = night_factor() * 0.22;
-    let time_weight = clamp(max(tw * 0.78, rain_w * 0.92) + night_w * (1.0 - rain_w), 0.0, 1.0);
-    let noon_suppress = 1.0 - midday() * (1.0 - rain_w);
-
-    let fog_active = time_weight * noon_suppress * outdoor * strength_opt;
+    let clear_weight = clamp(tw * 0.78 + night_w, 0.0, 1.0) * (1.0 - midday());
+    let fog_active = max(clear_weight * strength_opt, rain_w * clamp(strength_opt * 1.45, 0.35, 1.0)) * outdoor;
     if fog_active <= 0.001 {
         return 0.0;
     }
 
     let render_d = max(frame.render_distance, 64.0);
-    let start_d = render_d * mix(0.20, 0.10, rain_w);
-    let end_d = render_d * mix(1.02, 0.80, rain_w);
-    let curve = smoothstep(start_d, end_d, dist);
-    return clamp(curve * fog_active * 0.72, 0.0, 0.80);
+    let start_d = render_d * mix(0.20, 0.025, rain_w);
+    let end_d = render_d * mix(1.02, 0.46, rain_w);
+    let dist_curve = smoothstep(start_d, end_d, dist);
+
+    // Thick near-to-mid rain mist veil so rain atmosphere wraps trees and hills starting close to the camera
+    let near_rain_mist = (1.0 - exp(-dist * 0.026)) * rain_w * 0.52;
+    let combined_curve = max(dist_curve * mix(0.72, 0.94, rain_w), near_rain_mist);
+
+    return clamp(combined_curve * fog_active, 0.0, 0.92);
 }

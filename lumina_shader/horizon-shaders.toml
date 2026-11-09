@@ -1,7 +1,7 @@
 schema = 1
 id = "lumina_shader"
 name = "Lumina Shader"
-version = "1.2"
+version = "1.3"
 api = "0.1"
 description = "Warm Cinematic shader pack for Horizon: rich golden hour, aurora borealis night sky, cozy rain, quarter-res godrays & bloom, dynamic hand/offhand torch light, crystal water, and glowing ores. Tuned for 60 FPS on AMD Radeon 660M/680M."
 authors = ["yudz"]
@@ -48,7 +48,7 @@ name = "ACES Warm Grade"
 
 [shadow]
 resolution = 1024
-distance = 48.0
+distance = 32.0
 solid_materials = [10, 11]
 option = "shadows"
 resolution_option = "shadow_resolution"
@@ -336,10 +336,10 @@ default = "1024"
 [[options]]
 id = "shadow_distance"
 name = "Shadow Distance"
-description = "Shadow reach in blocks. 48 cuts Jungle shadow geometry nearly in half while keeping close shadows sharp; 32 is fastest."
+description = "Shadow reach in blocks. 32 culls over half the shadow chunks so only nearby visible blocks cast shadows; 48 reaches further."
 type = "choice"
 values = ["32", "48", "64", "96"]
-default = "48"
+default = "32"
 
 [[options]]
 id = "sun_warmth"

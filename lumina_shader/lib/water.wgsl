@@ -85,8 +85,8 @@ fn shade_water(input: MaterialInput, shadow_vis: vec3<f32>) -> Surface {
         day
     );
     let clear_refl = mix(sky_horiz, sky_zenith, pow(refl_up, 0.6)) + aurora_borealis(vec3<f32>(refl_dir.x, max(refl_dir.y, 0.12), refl_dir.z), night, aurora_strength) * 0.68;
-    let rain_refl = mix(vec3<f32>(0.08, 0.13, 0.20) * night_scale, vec3<f32>(0.34, 0.42, 0.52), day);
-    let sky_refl = mix(clear_refl, rain_refl, frame.rain * 0.82);
+    let rain_refl = mix(vec3<f32>(0.05, 0.08, 0.13) * night_scale, vec3<f32>(0.15, 0.20, 0.27), day);
+    let sky_refl = mix(clear_refl, rain_refl, frame.rain * 0.94);
 
     // Colored block & handheld torch light on water
     let blk_light = compute_block_and_hand_light(input, day) * 0.65;

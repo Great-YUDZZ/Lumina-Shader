@@ -67,8 +67,8 @@ fn sky(input: SkyInput) -> vec4<f32> {
 
     var sky_col = mix(horizon_col, zenith_col, pow(up, 0.58));
 
-    // Golden Hour & daytime solar scattering halo
-    let halo = (pow(sun_dot, 7.0) * 0.36 + near_horizon * pow(sun_dot, 2.2) * 0.44) * (1.0 - frame.rain * 0.88);
+    // Golden Hour & daytime solar scattering halo (hidden during overcast rain)
+    let halo = (pow(sun_dot, 7.0) * 0.36 + near_horizon * pow(sun_dot, 2.2) * 0.44) * (1.0 - smoothstep(0.15, 0.70, frame.rain));
     let warm_glow = mix(vec3<f32>(1.0, 0.72, 0.38), vec3<f32>(1.22, 0.52, 0.18), tw) * halo * mix(0.18, 0.96, tw) * day * sun_warmth;
     sky_col += warm_glow;
 
@@ -76,14 +76,20 @@ fn sky(input: SkyInput) -> vec4<f32> {
     sky_col += night_stars(d, night);
     sky_col += aurora_borealis(d, night, aurora_strength);
 
-    // Cozy Lo-Fi Slate-Blue rain sky
-    let rain_day = mix(vec3<f32>(0.34, 0.42, 0.52), vec3<f32>(0.45, 0.43, 0.47), tw * sun_warmth * 0.65);
-    let rain_sky = mix(vec3<f32>(0.08, 0.13, 0.20) * night_scale, rain_day, day);
-    sky_col = mix(sky_col, rain_sky, frame.rain * 0.88);
+    // Dark Overcast Cozy Lo-Fi Slate-Blue rain sky (darker zenith, misty slate horizon)
+    let thunder_darken = mix(1.0, 0.62, frame.thunder);
+    let rain_zenith_day = vec3<f32>(0.10, 0.14, 0.20) * thunder_darken;
+    let rain_horiz_day = mix(vec3<f32>(0.18, 0.23, 0.30), vec3<f32>(0.22, 0.22, 0.27), tw * sun_warmth * 0.5) * thunder_darken;
+    let rain_day = mix(rain_horiz_day, rain_zenith_day, pow(up, 0.55));
+    let rain_night = mix(vec3<f32>(0.05, 0.08, 0.13), vec3<f32>(0.03, 0.05, 0.09), pow(up, 0.55)) * night_scale;
+    let rain_sky = mix(rain_night, rain_day, day);
+    let rain_cover = smoothstep(0.0, 1.0, frame.rain) * 0.97;
+    sky_col = mix(sky_col, rain_sky, rain_cover);
 
-    // Blend smoothly at the very bottom so distant chunk edges have zero seam
+    // Blend smoothly at the very bottom so distant chunk edges melt into the horizon fog
     let horizon_blend = smoothstep(0.0, 0.15, d.y);
-    let bottom_target = mix(horizon_col, rain_sky, frame.rain * 0.88);
+    let rain_bottom = mix(vec3<f32>(0.05, 0.08, 0.13) * night_scale, rain_horiz_day, day);
+    let bottom_target = mix(horizon_col, rain_bottom, rain_cover);
     sky_col = mix(bottom_target, sky_col, horizon_blend);
 
     return vec4<f32>(clamp(sky_col, vec3<f32>(0.0), vec3<f32>(1.0)), input.color.a);
