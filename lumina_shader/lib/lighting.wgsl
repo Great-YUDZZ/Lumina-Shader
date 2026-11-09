@@ -1,5 +1,5 @@
-// Terrain lighting, distortion-aware PCF shadows, colored block light, ore glow in darkness,
-// and rain surface wetness.
+// Terrain lighting, distortion-aware PCF shadows, colored block light, dynamic hand/offhand light,
+// ore glow in darkness, and cozy rain surface wetness.
 
 override shadows: bool = true;
 override sun_warmth: f32 = 0.65;
@@ -11,9 +11,9 @@ override ore_glow: f32 = 0.85;
 override emissive_boost: f32 = 0.6;
 override wetness_enabled: bool = true;
 
-// Balanced noon intensities so white snow stays clean under 1.0 without clipping or blooming.
-const SUN_INTENSITY: f32 = 0.58;
-const SKY_INTENSITY: f32 = 0.48;
+// Softened daytime intensities (~20% calmer) so grass, sand, and snow stay rich without glare.
+const SUN_INTENSITY: f32 = 0.45;
+const SKY_INTENSITY: f32 = 0.37;
 
 // Computes the ground size (in blocks) covered by one shadow texel at camera-relative `p`,
 // accounting for `frame.shadow_distortion`.
@@ -25,8 +25,6 @@ fn shadow_texel(p: vec3<f32>) -> f32 {
 }
 
 // Fast 1-tap hardware bilinear 2x2 PCF shadow lookup for foliage and distant blocks (>20m).
-// Horizon's `shadow_sampler` uses FilterMode::Linear + CompareFunction::LessEqual, so a single
-// hardware sample already interpolates 4 depth texels in 1 instruction.
 fn sample_shadow_fast(p: vec3<f32>, offset_dir: vec3<f32>) -> vec3<f32> {
     if !shadows || frame.has_shadow == 0u {
         return vec3<f32>(1.0);
@@ -53,8 +51,7 @@ fn sample_shadow_fast(p: vec3<f32>, offset_dir: vec3<f32>) -> vec3<f32> {
 }
 
 // Distortion-aware & slope-biased PCF shadow lookup:
-// Uses 2-tap diagonal hardware bilinear PCF (8 effective depth comparisons) within 20 blocks
-// and 1-tap hardware bilinear PCF beyond 20 blocks to keep 60 FPS in dense biomes.
+// 2-tap diagonal hardware bilinear PCF within 20 blocks and 1-tap beyond 20 blocks.
 fn sample_shadow(p: vec3<f32>, offset_dir: vec3<f32>, ndl: f32) -> vec3<f32> {
     if !shadows || frame.has_shadow == 0u {
         return vec3<f32>(1.0);
@@ -153,47 +150,50 @@ fn compute_ore_glow(input: MaterialInput) -> vec3<f32> {
     return glow_tint * mask * ore_glow * dark_factor * pulse;
 }
 
-// Rain surface wetness: darkens porous outdoor surfaces and adds a glossy specular highlight.
+// Cozy Lo-Fi rain surface wetness: gently dampens porous outdoor blocks and adds a calm
+// slate-blue sky reflection plus warm golden lantern/torch reflection on wet ground.
 fn apply_wetness(base_color: vec3<f32>, input: MaterialInput) -> vec3<f32> {
     if !wetness_enabled || frame.wetness <= 0.005 || input.fluid != 0u {
         return base_color;
     }
 
-    let sky_exposure = smoothstep(0.55, 0.92, input.light.y);
-    let up_facing = smoothstep(-0.1, 0.65, input.normal.y);
-    let wet = frame.wetness * sky_exposure * (0.35 + 0.65 * up_facing);
+    let sky_exposure = smoothstep(0.52, 0.90, input.light.y);
+    let up_facing = smoothstep(-0.05, 0.65, input.normal.y);
+    let wet = frame.wetness * sky_exposure * (0.32 + 0.68 * up_facing);
     if wet <= 0.01 {
         return base_color;
     }
 
-    var color = base_color * mix(1.0, 0.78, wet);
+    var color = base_color * mix(1.0, 0.82, wet);
 
     let view_dir = normalize(-input.position);
     let ndotv = max(dot(input.normal, view_dir), 0.0);
-    let fresnel = 0.04 + 0.96 * pow(1.0 - ndotv, 4.0);
+    let fresnel = 0.04 + 0.96 * pow(1.0 - ndotv, 3.8);
 
-    let sky_sheen = mix(vec3<f32>(0.08, 0.11, 0.18), vec3<f32>(0.45, 0.52, 0.62), daylight());
+    let sky_sheen = mix(vec3<f32>(0.10, 0.16, 0.25), vec3<f32>(0.38, 0.47, 0.58), daylight());
+    let warm_lantern_sheen = vec3<f32>(1.18, 0.74, 0.34) * pow(input.light.x, 1.55) * block_light_strength * 0.36;
     let half_vec = normalize(view_dir + frame.light_direction);
     let spec_angle = max(dot(input.normal, half_vec), 0.0);
-    let sun_spec = pow(spec_angle, 48.0) * direct_light_color(sun_warmth) * 0.35;
+    let sun_spec = pow(spec_angle, 40.0) * direct_light_color(sun_warmth) * 0.25;
 
-    color += (sky_sheen * fresnel * 0.26 + sun_spec * up_facing) * wet;
+    color += ((sky_sheen + warm_lantern_sheen) * fresnel * 0.24 + (sun_spec + warm_lantern_sheen * 0.35) * up_facing) * wet;
     return color;
 }
 
 // Computes placed block lighting and per-pixel handheld/dropped dynamic lighting (main hand,
-// left hand / offhand, and dropped items) with zero extra texture reads when unlit.
+// left hand / offhand, and dropped items) with extra cozy warmth during rain.
 fn compute_block_and_hand_light(input: MaterialInput, day: f32) -> vec3<f32> {
     let dyn_peak = max(input.colored_light.r, max(input.colored_light.g, input.colored_light.b));
     if input.light.x <= 0.005 && dyn_peak <= 0.005 {
         return vec3<f32>(0.0);
     }
 
-    let daylit_suppress = 1.0 - input.light.y * day * 0.65;
+    let daylit_suppress = 1.0 - input.light.y * day * (1.0 - frame.rain * 0.45) * 0.55;
+    let rain_cozy_boost = 1.0 + frame.rain * 0.22;
     let flicker = 1.0 + (sin(frame.time * 6.8) * 0.55 + sin(frame.time * 15.3) * 0.45) * 0.045;
 
     var placed_alpha = 0.0;
-    var blk_tint = vec3<f32>(1.05, 0.68, 0.35);
+    var blk_tint = vec3<f32>(1.08, 0.70, 0.35);
     if input.light.x > 0.005 {
         let blk_sample = block_light_color(input.position);
         placed_alpha = min(blk_sample.a, 1.0);
@@ -205,22 +205,20 @@ fn compute_block_and_hand_light(input: MaterialInput, day: f32) -> vec3<f32> {
     // Per-pixel dynamic light from held items (right hand / left hand) or dropped light items
     if dyn_peak > 0.005 && handlight_strength > 0.001 {
         let dyn_hue = input.colored_light / max(dyn_peak, 0.001) * 1.22;
-        // When no placed light block is in the 3D grid, tint vertex block light with the held item's true color
         blk_tint = mix(dyn_hue, blk_tint, placed_alpha);
 
         let to_hand = normalize(vec3<f32>(0.0, -0.25, 0.0) - input.position);
         let hand_ndl = 0.65 + 0.35 * max(dot(input.normal, to_hand), 0.0);
         let smooth_radial = smoothstep(0.0, 1.0, pow(clamp(dyn_peak, 0.0, 1.0), 0.65));
-        block_term += dyn_hue * smooth_radial * hand_ndl * flicker * handlight_strength * daylit_suppress * 0.62;
+        block_term += dyn_hue * smooth_radial * hand_ndl * flicker * handlight_strength * daylit_suppress * rain_cozy_boost * 0.62;
     }
 
     if input.light.x > 0.005 {
-        // Blend vertex block light with per-pixel radial distance when lit purely by a held item
         let per_pixel_level = clamp(pow(dyn_peak, 0.55), 0.0, 1.0);
         let effective_level = mix(mix(input.light.x, per_pixel_level, 0.65 * step(0.005, dyn_peak)), input.light.x, placed_alpha);
-        let blk_factor = pow(effective_level, 1.80) * block_light_strength * daylit_suppress;
+        let blk_factor = pow(effective_level, 1.78) * block_light_strength * daylit_suppress * rain_cozy_boost;
         let active_flicker = mix(flicker, 1.0, placed_alpha * 0.65);
-        block_term += blk_tint * blk_factor * active_flicker * 0.78;
+        block_term += blk_tint * blk_factor * active_flicker * 0.80;
     }
 
     return block_term;

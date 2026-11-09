@@ -1,4 +1,4 @@
-# Lumina Shader v1.0
+# Lumina Shader v1.1
 
 Paket shader native berbasis WebGPU Shading Language (WGSL) untuk Horizon Client (Shader API 0.1).
 
@@ -12,9 +12,9 @@ Banyak shader pack menyebabkan penurunan frame rate yang tajam (drop hingga 20 s
 
 ---
 
-## Catatan Rilis Awal (Versi 1.0)
+## Catatan Rilis Awal (Versi 1.1)
 
-Ini merupakan rilis versi awal (v1.0). Pengujian intensif telah dilakukan pada konfigurasi hardware pengembang, namun kemungkinan masih terdapat bug minor, ketidaksesuaian rendering pada kombinasi blok tertentu, atau tampilan visual yang belum sepenuhnya sempurna di beberapa situasi lingkungan.
+Ini merupakan rilis versi awal (v1.1). Pengujian intensif telah dilakukan pada konfigurasi hardware pengembang, namun kemungkinan masih terdapat bug minor, ketidaksesuaian rendering pada kombinasi blok tertentu, atau tampilan visual yang belum sepenuhnya sempurna di beberapa situasi lingkungan.
 
 Jika Anda menemukan kejanggalan visual, penurunan performa, atau kesalahan kompilasi shader, silakan laporkan melalui menu Issues di repositori ini.
 
@@ -22,21 +22,21 @@ Jika Anda menemukan kejanggalan visual, penurunan performa, atau kesalahan kompi
 
 ## Fitur Utama
 
-- **Pewarnaan Sinematik Hangat (ACES Filmic)**: Tone mapping berbasis kurva filmik ACES dengan matahari keemasan dan bayangan bertingkat biru lembut (cool shadow tint). Tampilan bersih tanpa efek vignette yang memotong sudut pandang.
+- **Pewarnaan Sinematik Hangat & Golden Hour (ACES Filmic)**: Tone mapping berbasis kurva filmik ACES dengan cahaya Golden Hour keemasan di pagi serta sore hari dan bayangan bertingkat biru-ungu lembut (cool shadow tint). Tampilan bersih tanpa efek vignette yang memotong sudut pandang.
+- **Aurora Borealis di Langit Malam**: Langit malam dihiasi tirai Aurora Borealis hijau zamrud ke biru-toska dengan gradasi ungu di bagian atas yang mengalir pelan dan ikut terpantul di permukaan air, dilengkapi dengan taburan bintang berputar.
+- **Suasana Hujan Cozy Lo-Fi**: Saat turun hujan, langit dan kabut berubah menjadi biru-abu sejuk lembut (slate-blue) dengan rintik hujan tipis yang tenang, sementara cahaya obor dan lentera memancarkan kehangatan ekstra yang memantul halus di permukaan blok basah.
 - **Dynamic Hand & Offhand Torch Light**: Cahaya dinamis saat memegang obor atau lentera di tangan kanan (main hand), tangan kiri (offhand), maupun saat item dilempar ke tanah tanpa perlu menaruh blok. Menggunakan perataan radius per-piksel, efek kedipan api tipis, dan warna akurat per tipe item (Torch kuning hangat, Soul Torch biru sian, Redstone Torch merah, Lava Bucket oranye api, Glowstone emas, dan Amethyst/Ender Chest ungu).
 - **Awan Kotak 3D Hardware Horizon**: Terintegrasi langsung dengan sistem mesh awan kotak 3D Horizon yang di-cache di memori, sehingga memiliki dimensi volume atas, samping, dan bawah yang solid dengan biaya 0 ms di shader langit.
-- **Malam Gelap Realistis**: Suasana malam yang pekat dan imersif dengan taburan bintang malam yang berputar mengikuti waktu dunia.
 - **Hybrid Volumetric Godrays & Soft Bloom Quarter-Resolution**: Berjalan pada skala 0.25x (1/16 jumlah piksel) dengan tent upsampling untuk memberikan sorot sinar matahari di sela pepohonan dan pendaran cahaya halus pada sumber api/lava tanpa membebani kartu grafis.
 - **Air Jernih Realistis**: Menampilkan dasar perairan secara transparan dengan distorsi ombak lembut, penyerapan warna toska berdasarkan kedalaman (depth absorption), Schlick Fresnel, dan pantulan kilau matahari.
 - **Glowing Ores di Tempat Gelap**: Urat mineral pada blok bijih (diamond, gold, redstone, emerald, lapis, copper, iron, quartz, nether gold, ancient debris) memancarkan pendaran cahaya khas di dalam gua gelap, sementara bagian batu/deepslate di sekitarnya tetap gelap alami (batu bara/coal ore sengaja dibiarkan tidak bercahaya).
-- **Efek Basah Hujan & Kabut Waktu**: Permukaan terbuka yang terkena air hujan menggelap dan memantulkan kilau basah; kabut atmosferik tipis muncul secara natural saat pagi hari, senja, dan ketika hujan (siang hari dan bagian dalam gua tetap jernih).
 
 ---
 
 ## Cara Pemasangan
 
 ### Metode 1: Menggunakan Berkas Paket (.hshader)
-1. Unduh berkas `lumina_shader-1.0.hshader` dari menu Releases di repositori ini.
+1. Unduh berkas `lumina_shader-1.1.hshader` dari menu Releases di repositori ini.
 2. Salin berkas tersebut ke dalam folder `shaderpacks/` pada direktori instalasi instance Horizon Client Anda.
 3. Buka Horizon Client, masuk ke menu **Options > Video Settings > Shaders > Shader Packs**.
 4. Pilih **Lumina Shader** dari daftar.

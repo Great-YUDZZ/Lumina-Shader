@@ -1,11 +1,10 @@
-// Material stage: combines terrain albedo, directional sunlight with distortion-aware PCF shadows,
-// cool sky shadows, colored block lights, emissive blocks, glowing ores, rain wetness,
-// crystal water, and time-of-day atmospheric fog.
+// Material stage: combines terrain albedo, directional sunlight/moonlight with distortion-aware PCF
+// shadows, rich Golden Hour ambient, balanced Moonlit & Aurora night visibility, cozy rain wetness,
+// colored block & handheld torch lights, emissive blocks, glowing ores, and crystal water.
 
 fn material(input: MaterialInput) -> Surface {
     // Early-out for transparent cutout texels (leaves, vines, grass, ferns, flowers) BEFORE
-    // running shadow PCF or 3D block light lookups: Horizon's `horizon_material_solid` calls
-    // `material()` before checking `if color.a < 0.5 { discard; }`.
+    // running shadow PCF or 3D block light lookups.
     if !input.translucent && input.albedo.a < 0.5 {
         return Surface(vec4<f32>(0.0));
     }
@@ -46,23 +45,34 @@ fn material(input: MaterialInput) -> Surface {
 
     let day = daylight();
     let tw = twilight();
-    let night_scale = mix(0.38, 0.055, night_darkness);
+    let night_scale = mix(0.64, 0.30, night_darkness);
 
     // Keep biome tint and ambient occlusion from input.tint, removing vanilla's static face shade
     let clean_tint = input.tint.rgb / vanilla_face_shade(n);
     let base_albedo = input.albedo.rgb * clean_tint;
 
-    // Ambient sky light with Cool Shadow Tint contrast
+    // Ambient sky light:
+    // - Noon: calm cool sky shadow contrast
+    // - Morning / Afternoon (Golden Hour): warm golden-amber & lavender-dusk bounce
+    // - Night: moonlit silver-blue + subtle emerald-teal Aurora sky bounce
+    // - Rain: cozy slate-blue calm ambient
     let cool_shadow = mix(vec3<f32>(0.88, 0.92, 0.98), vec3<f32>(0.74, 0.86, 1.05), shadow_tint);
-    let day_sky_ambient = mix(frame.sky_color, cool_shadow, 0.55) * SKY_INTENSITY;
-    let night_sky_ambient = vec3<f32>(0.05, 0.08, 0.15) * night_scale;
+    let noon_sky_ambient = mix(frame.sky_color, cool_shadow, 0.52) * SKY_INTENSITY;
+    let golden_ambient = mix(vec3<f32>(0.64, 0.50, 0.46), vec3<f32>(0.86, 0.56, 0.36), sun_warmth) * SKY_INTENSITY * 1.15;
+    let day_sky_ambient = mix(noon_sky_ambient, golden_ambient, tw * 0.80);
+
+    let night_sky_ambient = vec3<f32>(0.11, 0.17, 0.26) * night_scale;
     var sky_ambient_col = mix(night_sky_ambient, day_sky_ambient, day);
-    sky_ambient_col = mix(sky_ambient_col, vec3<f32>(luminance(sky_ambient_col)), frame.rain * 0.55);
+
+    let rain_ambient = mix(vec3<f32>(0.09, 0.14, 0.21) * night_scale, vec3<f32>(0.30, 0.37, 0.46), day);
+    sky_ambient_col = mix(sky_ambient_col, rain_ambient, frame.rain * 0.72);
 
     let sky_facing = 0.82 + 0.18 * n.y;
-    let cave_min = mix(0.015, 0.042, frame.brightness) * mix(1.2, 0.45, night_darkness);
+    let cave_min = mix(0.022, 0.050, frame.brightness) * mix(1.15, 0.65, night_darkness);
     let sky_light_sq = input.light.y * input.light.y;
-    let sky_term = sky_ambient_col * sky_light_sq * sky_facing + vec3<f32>(cave_min);
+    // Outdoor moonlight baseline at night so paths and trees stay visible without torches while caves remain dark
+    let night_outdoor_lift = input.lightmap * (1.0 - day) * smoothstep(0.15, 0.85, input.light.y) * mix(0.30, 0.15, night_darkness);
+    let sky_term = sky_ambient_col * sky_light_sq * sky_facing + night_outdoor_lift + vec3<f32>(cave_min);
 
     // Directional sun / moon lighting with PCF shadow map and foliage subsurface scattering
     let is_foliage = input.material == 10u || input.material == 11u;
@@ -72,7 +82,7 @@ fn material(input: MaterialInput) -> Surface {
     var foliage_tint = vec3<f32>(1.0);
     if is_foliage {
         ndl = ndl * 0.85 + through * 0.42;
-        foliage_tint = mix(vec3<f32>(1.0), vec3<f32>(0.86, 1.0, 0.58), through);
+        foliage_tint = mix(vec3<f32>(1.0), vec3<f32>(0.88, 1.0, 0.56), through);
     }
 
     var direct_term = vec3<f32>(0.0);
@@ -84,7 +94,8 @@ fn material(input: MaterialInput) -> Surface {
             shadow_vis = sample_shadow(input.position, n, max(facing, 0.15));
         }
         let outdoor_mask = smoothstep(0.05, 0.45, input.light.y);
-        let direct_col = direct_light_color(sun_warmth) * foliage_tint * mix(0.20 * night_scale, SUN_INTENSITY, day);
+        let day_sun_power = SUN_INTENSITY * (1.0 + tw * 0.30 * sun_warmth);
+        let direct_col = direct_light_color(sun_warmth) * foliage_tint * mix(0.32 * night_scale, day_sun_power, day);
         direct_term = direct_col * ndl * shadow_vis * outdoor_mask;
     }
 
@@ -98,7 +109,7 @@ fn material(input: MaterialInput) -> Surface {
 
     var color = base_albedo * total_light;
 
-    // Rain surface wetness
+    // Cozy Lo-Fi rain surface wetness
     color = apply_wetness(color, input);
 
     // Emissive blocks (torches, lanterns, glowstone, froglights)
@@ -112,7 +123,7 @@ fn material(input: MaterialInput) -> Surface {
     // Glowing ore mineral veins in darkness (excludes coal; stone/deepslate stays unlit)
     color += compute_ore_glow(input);
 
-    // Time-of-day atmospheric fog (morning, sunset, rain; subtle at night; zero at noon and inside caves)
+    // Time-of-day atmospheric fog
     let fog_f = compute_fog_factor(dist, input.light.y, fog_strength);
     if fog_f > 0.0 {
         let fog_c = atmospheric_fog_color(view_dir, sun_warmth, night_darkness);
