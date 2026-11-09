@@ -74,79 +74,135 @@ fn sky(input: SkyInput) -> vec4<f32> {
 
     // Realistic Sun Disc with limb darkening and corona (rendered before clouds so clouds can occlude it)
     let sun_dir = frame.sun_direction;
-    if sun_dir.y > -0.12 {
+    if sun_dir.y > -0.10 {
         let along = dot(d, sun_dir);
         let radius = 0.038;
         let apart = acos(clamp(along, -1.0, 1.0));
         let disc = 1.0 - smoothstep(radius * 0.90, radius, apart);
         let rim = clamp(apart / radius, 0.0, 1.0);
-        let limb = 1.0 - 0.45 * (1.0 - sqrt(max(1.0 - rim * rim, 0.0)));
-        let disc_col = mix(vec3<f32>(1.0, 0.96, 0.90), vec3<f32>(1.35, 0.52, 0.16), tw) * limb;
-        let corona = exp(-max(apart - radius, 0.0) * 85.0) * 0.55 + exp(-max(apart - radius, 0.0) * 16.0) * 0.18;
-        let corona_col = mix(vec3<f32>(1.0, 0.92, 0.76), vec3<f32>(1.30, 0.58, 0.20), tw);
+        let limb = 1.0 - 0.40 * (1.0 - sqrt(max(1.0 - rim * rim, 0.0)));
+        let disc_col = mix(vec3<f32>(2.6, 2.5, 2.3), vec3<f32>(3.2, 1.45, 0.35), tw) * limb;
+        let corona = exp(-max(apart - radius, 0.0) * 80.0) * 0.65 + exp(-max(apart - radius, 0.0) * 16.0) * 0.22;
+        let corona_col = mix(vec3<f32>(1.20, 1.05, 0.85), vec3<f32>(1.40, 0.65, 0.22), tw);
         let horizon_fade = smoothstep(-0.03, 0.03, d.y) * (1.0 - frame.rain * 0.85);
         sky_col += corona_col * corona * (1.0 - disc) * horizon_fade;
-        sky_col = mix(sky_col, disc_col * 1.5, disc * horizon_fade);
+        sky_col = mix(sky_col, disc_col, disc * horizon_fade);
     }
 
-    // Volumetric Billowing Cumulus Clouds with 3D self-shadowing and sun occlusion
+    // Volumetric Cumulus Clouds (inspired by MakeUp-UltraFast 9.6 slab raymarching)
     if d.y > 0.02 {
-        let cloud_alt = 550.0;
-        var plane = d.xz / max(d.y, 0.02) * cloud_alt + frame.camera_position.xz * 0.5;
-        let plane_len = length(plane);
-        plane = plane * min(1.0, 8000.0 / max(plane_len, 1.0));
+        let view_y_inv = 1.0 / max(d.y, 0.02);
+        let base_pos = frame.camera_position;
+        let cloud_plane_inf = 280.0;
+        let cloud_plane_center = 350.0;
+        let cloud_plane_sup = 430.0;
 
-        let wind = vec2<f32>(frame.time * 2.2, frame.time * 0.7);
-        let p = (plane + wind) * 0.0016;
+        let plane_dist_inf = (cloud_plane_inf - base_pos.y) * view_y_inv;
+        let plane_dist_sup = (cloud_plane_sup - base_pos.y) * view_y_inv;
 
-        let warp_x = noise2d(p * 1.25 + vec2<f32>(2.3, 7.7));
-        let warp_y = noise2d(p * 1.25 + vec2<f32>(9.2, 3.4));
-        let q = p + (vec2<f32>(warp_x, warp_y) - 0.5) * 0.62;
+        if plane_dist_inf > 0.0 {
+            var pos_inf = base_pos + d * plane_dist_inf;
+            var pos_sup = base_pos + d * plane_dist_sup;
 
-        let coverage = clamp(0.50 + frame.rain * 0.45, 0.0, 0.96);
-        let threshold = mix(0.70, 0.25, coverage);
-        let n = cloud_fbm(q);
-        let density = smoothstep(threshold, threshold + 0.16, n);
+            // Clamping distant horizon projection to prevent precision loss
+            let inf_len = length(pos_inf.xz - base_pos.xz);
+            if inf_len > 9000.0 {
+                pos_inf = base_pos + (pos_inf - base_pos) * (9000.0 / inf_len);
+                pos_sup = base_pos + (pos_sup - base_pos) * (9000.0 / inf_len);
+            }
 
-        if density > 0.001 {
-            // Self-shadowing: sample cloud volume slightly toward the sun to shade undersides and back-faces
-            let sun_h = normalize(vec2<f32>(sun_dir.x, sun_dir.z) + vec2<f32>(0.0001));
-            let shadow_n = cloud_fbm(q + sun_h * 0.35);
-            let shadow_dens = smoothstep(threshold, threshold + 0.16, shadow_n);
-            let cloud_light = 1.0 - shadow_dens * 0.52;
+            let dif_sup = cloud_plane_sup - cloud_plane_center;
+            let dif_inf = cloud_plane_center - cloud_plane_inf;
 
-            // Day coloring: bright tops and shadowed undersides
-            let day_lit = vec3<f32>(0.96, 0.97, 1.00);
-            let day_shade = vec3<f32>(0.54, 0.58, 0.68);
-            var cloud_col = mix(day_shade, day_lit, cloud_light);
+            let samples = 8;
+            let increment = (pos_sup - pos_inf) / f32(samples);
+            let increment_dist = length(increment);
 
-            // Sunset golden/orange under-lighting
-            let sun_side = max(dot(normalize(d.xz + vec2<f32>(0.0001)), sun_h), 0.0);
-            let sunset_tint = mix(vec3<f32>(1.05, 0.48, 0.55), vec3<f32>(1.25, 0.65, 0.25), sun_side);
-            cloud_col = mix(cloud_col, sunset_tint, tw * (0.35 + 0.55 * shadow_dens));
+            let dist_aux_coeff = (cloud_plane_sup - cloud_plane_inf) * 0.075;
+            let dist_aux_blur = dist_aux_coeff * 0.35;
+            let opacity_dist = dist_aux_coeff * 2.2 * view_y_inv;
 
-            // Night cloud color
-            let night_lit = vec3<f32>(0.06, 0.09, 0.15) * night_scale;
-            let night_shade = vec3<f32>(0.02, 0.03, 0.06) * night_scale;
-            let night_col = mix(night_shade, night_lit, cloud_light);
-            cloud_col = mix(night_col, cloud_col, day);
+            // Raymarch dither from view ray direction
+            let dither = fract(sin(dot(d.xz, vec2<f32>(12.9898, 78.233))) * 43758.5453);
+            var curr_pos = pos_inf + increment * (dither * 0.85);
 
-            // Silver lining: thin edges facing the sun glow brightly
-            let sun_face = max(dot(d, sun_dir), 0.0);
-            let edge = 4.0 * density * (1.0 - density);
-            let silver = pow(sun_face, 6.0) * edge * (0.35 + 0.65 * day) * 0.60;
-            cloud_col += vec3<f32>(1.15, 0.98, 0.82) * silver;
+            let coverage = clamp(0.42 + frame.rain * 0.45, 0.0, 0.95);
+            let umbral = mix(0.70, 0.32, coverage);
 
-            // Rain overcast desaturation
-            let rain_grey = vec3<f32>(0.25, 0.28, 0.32) * mix(0.35, 1.0, day);
-            cloud_col = mix(cloud_col, rain_grey, frame.rain * 0.85);
+            var accum_opacity = 0.0;
+            var density = 0.0;
+            var first_contact = true;
 
-            // Soft atmospheric fade near horizon
-            let fade = smoothstep(0.02, 0.12, d.y);
-            let alpha = min(density * fade, 0.96);
+            for (var i = 0; i < 8; i++) {
+                let n = cloud_noise_fast(curr_pos.xz);
+                let current_val = clamp((n - umbral) / (1.0 - umbral), 0.0, 1.0);
 
-            // Cloud occludes the sun when in front of it
-            sky_col = mix(sky_col, cloud_col, alpha);
+                let surf_inf = cloud_plane_center - current_val * dif_inf;
+                let surf_sup = cloud_plane_center + current_val * dif_sup;
+                let cloud_thickness = surf_sup - surf_inf;
+
+                var current_opacity = 0.0;
+                if curr_pos.y > surf_inf && curr_pos.y < surf_sup && cloud_thickness > 0.0 {
+                    current_opacity = min(increment_dist, cloud_thickness);
+                } else if cloud_thickness > 0.0 && i > 0 {
+                    let dist_aux = min(abs(curr_pos.y - surf_inf), abs(curr_pos.y - surf_sup));
+                    if dist_aux < dist_aux_blur {
+                        let blur_factor = 1.0 - (dist_aux / dist_aux_blur);
+                        current_opacity = min(blur_factor * increment_dist, cloud_thickness);
+                    }
+                }
+
+                if current_opacity > 0.0 {
+                    accum_opacity += current_opacity;
+                    if first_contact {
+                        first_contact = false;
+                        density = (surf_sup - curr_pos.y) / (cloud_plane_sup - cloud_plane_inf);
+                    }
+                }
+                curr_pos += increment;
+            }
+
+            let cloud_val = clamp(accum_opacity / opacity_dist, 0.0, 1.0);
+            if cloud_val > 0.002 {
+                let safe_density = clamp(density, 0.0001, 1.0);
+                let bright = clamp(pow(max(dot(d, sun_dir), 0.0), 3.0), 0.0, 1.0);
+                let att_factor = mix(1.0, 0.75, bright * (1.0 - frame.rain));
+                let density_approx = sqrt(sqrt(safe_density));
+
+                // MakeUp-UltraFast day / sunset / night cloud palettes
+                let day_lit = vec3<f32>(1.02, 1.01, 1.00);
+                let day_dark = vec3<f32>(0.50, 0.55, 0.65);
+
+                let tw_lit = mix(vec3<f32>(1.25, 0.58, 0.24), vec3<f32>(1.10, 0.48, 0.42), max(dot(d.xz, sun_dir.xz), 0.0));
+                let tw_dark = vec3<f32>(0.35, 0.28, 0.38);
+
+                let night_lit = vec3<f32>(0.07, 0.10, 0.18) * night_scale;
+                let night_dark = vec3<f32>(0.02, 0.03, 0.06) * night_scale;
+
+                var lit_col = mix(day_lit, tw_lit, tw);
+                lit_col = mix(night_lit, lit_col, day);
+
+                var dark_col = mix(day_dark, tw_dark, tw);
+                dark_col = mix(night_dark, dark_col, day);
+
+                // Volumetric vertical shading: cloud underside is dark, tops are lit
+                var cloud_col = mix(lit_col * att_factor, dark_col * att_factor, density_approx * 0.85);
+
+                // Forward scattering silver lining on edges facing the sun
+                let cloud_val_approx = sqrt(sqrt(cloud_val));
+                cloud_col = mix(cloud_col, cloud_col * 2.2, (1.0 - cloud_val_approx) * bright * bright * (1.0 - frame.rain));
+
+                // Overcast rain desaturation
+                let rain_col = vec3<f32>(0.26, 0.29, 0.33) * mix(0.35, 1.0, day);
+                cloud_col = mix(cloud_col, rain_col, frame.rain * 0.85);
+
+                // Horizon fade
+                let fade = smoothstep(0.02, 0.12, d.y);
+                let alpha = min(cloud_val * fade, 0.96);
+
+                // Blend volumetric clouds over the sky and sun
+                sky_col = mix(sky_col, cloud_col, alpha);
+            }
         }
     }
 
