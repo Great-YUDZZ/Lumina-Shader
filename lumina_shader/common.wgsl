@@ -53,27 +53,30 @@ fn noise2d(p: vec2<f32>) -> f32 {
     return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
 }
 
-// Fast 2-octave domain-warped noise for MakeUp-UltraFast volumetric clouds
-fn cloud_noise_fast(world_xz: vec2<f32>) -> f32 {
-    let wind = vec2<f32>(frame.time * 2.0, frame.time * 0.7);
-    let p = (world_xz + wind) * 0.00032;
-
-    // Domain warp pushes round blobs into billowing cumulus shapes
-    let wx = noise2d(p * 1.4 + vec2<f32>(2.3, 7.7));
-    let wy = noise2d(p * 1.4 + vec2<f32>(9.2, 3.4));
-    let q = p + (vec2<f32>(wx, wy) - 0.5) * 0.55;
-
-    let n1 = noise2d(q);
-    let n2 = noise2d(q * 2.2 + vec2<f32>(5.1, 1.9));
-    return n1 * 0.72 + n2 * 0.28;
+// 4-octave FBM for billowing cumulus clouds with balanced amplitude
+fn cloud_fbm_fast(p: vec2<f32>) -> f32 {
+    var total = 0.0;
+    var amp = 0.52;
+    var q = p;
+    for (var i = 0; i < 4; i++) {
+        total += noise2d(q) * amp;
+        q = q * 2.08 + vec2<f32>(3.1, 7.9);
+        amp *= 0.48;
+    }
+    return total;
 }
 
 // Global volumetric cloud density at a given world XZ coordinate.
 fn cloud_density_at(world_xz: vec2<f32>) -> f32 {
-    let n = cloud_noise_fast(world_xz);
-    let coverage = clamp(0.40 + frame.rain * 0.45, 0.0, 0.95);
-    let umbral = mix(0.72, 0.35, coverage);
-    return smoothstep(umbral, umbral + 0.15, n);
+    let plane = world_xz * 0.5 + frame.time * vec2<f32>(3.0, 1.0);
+    let p = plane * 0.0020;
+    let wx = noise2d(p * 0.45 + vec2<f32>(2.3, 7.7)) * 0.66 + noise2d(p * 1.15 + vec2<f32>(5.1, 1.9)) * 0.34;
+    let wy = noise2d(p * 0.45 + vec2<f32>(9.2, 3.4)) * 0.66 + noise2d(p * 1.15 + vec2<f32>(1.7, 8.6)) * 0.34;
+    let q = p + (vec2<f32>(wx, wy) - 0.5) * 2.2;
+    let n = cloud_fbm_fast(q);
+    let coverage = clamp(0.48 + frame.rain * 0.45, 0.0, 1.0);
+    let threshold = mix(0.58, 0.24, coverage);
+    return smoothstep(threshold, threshold + 0.10, n);
 }
 
 // Cloud shadow factor on terrain / water (1.0 = full sunlight, ~0.45 = in cloud shadow).
@@ -81,7 +84,7 @@ fn sample_cloud_shadow(world_pos: vec3<f32>, sky_light: f32) -> f32 {
     if frame.dimension != 0 || sky_light < 0.10 || frame.light_direction.y <= 0.02 {
         return 1.0;
     }
-    let cloud_alt = 350.0;
+    let cloud_alt = 600.0;
     let ray_t = max(0.0, (cloud_alt - world_pos.y) / max(frame.light_direction.y, 0.08));
     let cloud_xz = world_pos.xz + frame.light_direction.xz * ray_t;
     let density = cloud_density_at(cloud_xz);
