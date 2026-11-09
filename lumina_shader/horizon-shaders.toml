@@ -1,0 +1,504 @@
+schema = 1
+id = "lumina_shader"
+name = "Lumina Shader"
+version = "1.0"
+api = "0.1"
+description = "Warm Cinematic shader pack for Horizon: quarter-res volumetric godrays & bloom, dynamic hand/offhand torch light, realistic dark nights, crystal water, glowing ores, and ACES tone mapping. Tuned for 60 FPS on AMD Radeon 660M/680M."
+authors = ["yudz"]
+license = "MIT"
+shared = ["common.wgsl", "lib/fog.wgsl"]
+
+[sky]
+file = "sky.wgsl"
+name = "Warm Horizon Sky"
+clouds = true
+stars = false
+
+[material]
+file = "material.wgsl"
+files = ["lib/lighting.wgsl", "lib/water.wgsl"]
+name = "Terrain & Water"
+fog = false
+
+[weather]
+file = "weather.wgsl"
+name = "Rain & Snow"
+
+[[post]]
+file = "post/godrays.wgsl"
+name = "Volumetric Godrays"
+output = "rays"
+scale = 0.25
+
+[[post]]
+file = "post/bloom_prefilter.wgsl"
+name = "Bloom Prefilter"
+output = "bloom_a"
+scale = 0.25
+
+[[post]]
+file = "post/bloom.wgsl"
+name = "Soft Bloom"
+output = "bloom_b"
+scale = 0.25
+
+[[post]]
+file = "post/grade.wgsl"
+name = "ACES Warm Grade"
+
+[shadow]
+resolution = 1024
+distance = 48.0
+solid_materials = [10, 11]
+option = "shadows"
+resolution_option = "shadow_resolution"
+distance_option = "shadow_distance"
+
+[budget]
+gpu_ms = 2.0
+
+# --- Materials ---
+
+[[materials]]
+id = 10
+sprites = ["block/*_leaves"]
+
+[[materials]]
+id = 11
+sprites = [
+    "block/vine",
+    "block/cave_vines*",
+    "block/weeping_vines*",
+    "block/twisting_vines*",
+    "block/bamboo*",
+    "block/short_grass",
+    "block/short_dry_grass",
+    "block/tall_dry_grass",
+    "block/tall_grass*",
+    "block/fern",
+    "block/large_fern*",
+    "block/bush",
+    "block/dead_bush",
+    "block/firefly_bush",
+    "block/*_sapling",
+    "block/lily_pad",
+    "block/cocoa*",
+]
+
+[[materials]]
+id = 21
+sprites = [
+    "block/diamond_ore",
+    "block/deepslate_diamond_ore",
+    "block/emerald_ore",
+    "block/deepslate_emerald_ore",
+    "block/gold_ore",
+    "block/deepslate_gold_ore",
+    "block/redstone_ore",
+    "block/deepslate_redstone_ore",
+    "block/lapis_ore",
+    "block/deepslate_lapis_ore",
+    "block/copper_ore",
+    "block/deepslate_copper_ore",
+]
+
+[[materials]]
+id = 22
+sprites = [
+    "block/iron_ore",
+    "block/deepslate_iron_ore",
+]
+
+[[materials]]
+id = 23
+sprites = [
+    "block/nether_gold_ore",
+    "block/nether_quartz_ore",
+    "block/gilded_blackstone",
+]
+
+[[materials]]
+id = 24
+sprites = [
+    "block/ancient_debris_side",
+    "block/ancient_debris_top",
+]
+
+[[materials]]
+id = 30
+blocks = [
+    "glowstone",
+    "sea_lantern",
+    "shroomlight",
+    "ochre_froglight",
+    "verdant_froglight",
+    "pearlescent_froglight",
+    "lantern",
+    "soul_lantern",
+    "torch",
+    "wall_torch",
+    "soul_torch",
+    "soul_wall_torch",
+    "redstone_torch",
+    "redstone_wall_torch",
+    "redstone_lamp",
+    "crying_obsidian",
+    "magma_block",
+    "beacon",
+    "conduit",
+    "end_rod",
+    "jack_o_lantern",
+    "campfire",
+    "soul_campfire",
+    "amethyst_cluster",
+    "large_amethyst_bud",
+]
+
+# --- Colored Block Lights ---
+
+[[lights]]
+color = [1.35, 0.82, 0.38]
+blocks = [
+    "torch",
+    "wall_torch",
+    "lantern",
+    "campfire",
+    "jack_o_lantern",
+    "copper_torch",
+    "copper_wall_torch",
+    "copper_lantern",
+    "*_copper_lantern",
+]
+
+[[lights]]
+color = [1.55, 0.55, 0.18]
+blocks = [
+    "lava",
+    "lava_bucket",
+    "fire",
+    "magma_block",
+    "blast_furnace",
+    "furnace",
+    "smoker",
+]
+
+[[lights]]
+color = [0.32, 0.78, 1.35]
+blocks = [
+    "soul_torch",
+    "soul_wall_torch",
+    "soul_lantern",
+    "soul_fire",
+    "soul_campfire",
+]
+
+[[lights]]
+color = [1.30, 0.22, 0.18]
+blocks = [
+    "redstone_torch",
+    "redstone_wall_torch",
+    "redstone_ore",
+    "deepslate_redstone_ore",
+]
+
+[[lights]]
+color = [1.18, 0.96, 0.62]
+blocks = [
+    "glowstone",
+    "shroomlight",
+    "*_froglight",
+    "redstone_lamp",
+    "candle",
+    "*_candle",
+    "cave_vines*",
+    "glow_berries",
+    "firefly_bush",
+    "glow_lichen",
+    "sea_pickle",
+]
+
+[[lights]]
+color = [0.92, 1.05, 1.15]
+blocks = [
+    "sea_lantern",
+    "conduit",
+    "beacon",
+    "end_rod",
+    "vault",
+    "trial_spawner",
+    "heavy_core",
+]
+
+[[lights]]
+color = [0.85, 0.42, 1.30]
+blocks = [
+    "crying_obsidian",
+    "respawn_anchor",
+    "amethyst_cluster",
+    "*_amethyst_bud",
+    "enchanting_table",
+    "ender_chest",
+    "sculk_catalyst",
+    "sculk_sensor",
+    "calibrated_sculk_sensor",
+]
+
+# --- Settings Pages ---
+
+[[pages]]
+id = "main"
+name = "Lumina Shader"
+items = [
+    "page:lighting",
+    "page:atmosphere",
+    "page:water_weather",
+    "page:emissive",
+    "page:post",
+    "",
+]
+
+[[pages]]
+id = "lighting"
+name = "Lighting & Shadows"
+description = "Shadow map quality, sun warmth, cool shadow tint, colored block light, and handheld torch light."
+items = [
+    "shadows",
+    "shadow_resolution",
+    "shadow_distance",
+    "sun_warmth",
+    "shadow_tint",
+    "block_light_strength",
+    "handlight_strength",
+    "",
+]
+
+[[pages]]
+id = "atmosphere"
+name = "Sky, Godrays & Fog"
+description = "Volumetric godrays, realistic night darkness, and time-of-day fog."
+items = [
+    "godrays",
+    "godray_strength",
+    "fog_strength",
+    "night_darkness",
+]
+
+[[pages]]
+id = "water_weather"
+name = "Water & Rain"
+description = "Crystal clear water refraction, sun specular highlights, and rain surface wetness."
+items = [
+    "water_clarity",
+    "water_specular",
+    "wetness_enabled",
+    "",
+]
+
+[[pages]]
+id = "emissive"
+name = "Glowing Ores & Emissive"
+description = "Ore mineral glow in dark caves and emissive block brightness."
+items = [
+    "ore_glow",
+    "emissive_boost",
+]
+
+[[pages]]
+id = "post"
+name = "Bloom & Color Grade"
+description = "Soft bloom, exposure, contrast, and saturation for ACES Warm Cinematic tone mapping."
+items = [
+    "bloom_strength",
+    "exposure",
+    "contrast",
+    "saturation",
+]
+
+# --- Options ---
+
+[[options]]
+id = "shadows"
+name = "Shadows"
+description = "Draw directional sun and moon shadows and enable volumetric shadow-mapped godrays."
+type = "bool"
+default = true
+
+[[options]]
+id = "shadow_resolution"
+name = "Shadow Resolution"
+description = "Shadow map resolution in texels. 1024 is fastest for 60 FPS on Radeon 660M; 2048 is sharper."
+type = "choice"
+values = ["1024", "2048"]
+default = "1024"
+
+[[options]]
+id = "shadow_distance"
+name = "Shadow Distance"
+description = "Shadow reach in blocks. 48 cuts Jungle shadow geometry nearly in half while keeping close shadows sharp; 32 is fastest."
+type = "choice"
+values = ["32", "48", "64", "96"]
+default = "48"
+
+[[options]]
+id = "sun_warmth"
+name = "Sun Warmth"
+description = "How golden the sunlight is, especially around sunrise and sunset."
+type = "float"
+default = 0.65
+min = 0.0
+max = 1.0
+step = 0.05
+
+[[options]]
+id = "shadow_tint"
+name = "Cool Shadow Tint"
+description = "Subtle cool sky-blue tint in shadowed areas to contrast with warm sunlight."
+type = "float"
+default = 0.45
+min = 0.0
+max = 1.0
+step = 0.05
+
+[[options]]
+id = "block_light_strength"
+name = "Block Light Intensity"
+description = "Strength of warm torches, lanterns, and colored block lights."
+type = "float"
+default = 1.15
+min = 0.5
+max = 2.0
+step = 0.05
+
+[[options]]
+id = "handlight_strength"
+name = "Hand Torch Light"
+description = "Brightness of dynamic light when holding a torch or lantern in main hand or left hand (offhand)."
+type = "float"
+default = 1.25
+min = 0.0
+max = 2.0
+step = 0.05
+
+[[options]]
+id = "godrays"
+name = "Volumetric Godrays"
+description = "Sunbeams filtered through trees and hills using the shadow map at quarter resolution."
+type = "bool"
+default = true
+
+[[options]]
+id = "godray_strength"
+name = "Godray Intensity"
+description = "Brightness of volumetric sun shafts and canopy sunbeams."
+type = "float"
+default = 0.75
+min = 0.0
+max = 1.5
+step = 0.05
+
+[[options]]
+id = "fog_strength"
+name = "Morning / Dusk / Rain Fog"
+description = "Atmospheric fog thickness at sunrise, sunset, and during rain (noon and caves stay clear)."
+type = "float"
+default = 0.55
+min = 0.0
+max = 1.0
+step = 0.05
+
+[[options]]
+id = "night_darkness"
+name = "Realistic Night Darkness"
+description = "How dark unlit areas become at night and inside caves."
+type = "float"
+default = 0.75
+min = 0.0
+max = 1.0
+step = 0.05
+
+[[options]]
+id = "water_clarity"
+name = "Water Clarity"
+description = "How clearly you can see refracted terrain underwater from above."
+type = "float"
+default = 0.75
+min = 0.2
+max = 1.0
+step = 0.05
+
+[[options]]
+id = "water_specular"
+name = "Water Sun Reflection"
+description = "Intensity of glittering sun and moon reflections on water waves."
+type = "float"
+default = 0.7
+min = 0.0
+max = 1.5
+step = 0.05
+
+[[options]]
+id = "wetness_enabled"
+name = "Rain Surface Wetness"
+description = "Darken and add glossy specular sheen to sky-exposed blocks when it rains."
+type = "bool"
+default = true
+
+[[options]]
+id = "ore_glow"
+name = "Ore Glow in Darkness"
+description = "How strongly mineral veins on ores (except coal) glow in dark caves."
+type = "float"
+default = 0.85
+min = 0.0
+max = 1.5
+step = 0.05
+
+[[options]]
+id = "emissive_boost"
+name = "Emissive Block Boost"
+description = "Extra glow on lava, lanterns, torches, glowstone, and froglights."
+type = "float"
+default = 0.6
+min = 0.0
+max = 1.5
+step = 0.05
+
+[[options]]
+id = "bloom_strength"
+name = "Bloom Intensity"
+description = "Soft light halo around the sun, lava, torches, and glowing ores."
+type = "float"
+default = 0.35
+min = 0.0
+max = 1.0
+step = 0.05
+
+[[options]]
+id = "exposure"
+name = "Exposure"
+description = "Overall brightness before ACES filmic tone mapping."
+type = "float"
+default = 1.0
+min = 0.6
+max = 1.6
+step = 0.05
+
+[[options]]
+id = "contrast"
+name = "Contrast"
+description = "Midtone contrast in the final color grade."
+type = "float"
+default = 1.06
+min = 0.8
+max = 1.4
+step = 0.02
+
+[[options]]
+id = "saturation"
+name = "Saturation"
+description = "Color richness in the final picture."
+type = "float"
+default = 1.10
+min = 0.5
+max = 1.6
+step = 0.02

@@ -1,0 +1,15 @@
+# OS artifacts
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary and editor files
+*.tmp
+*.swp
+*.bak
+*~
+.idea/
+.vscode/
+
+# Build artifacts (optional, keep source clean)
+target/
