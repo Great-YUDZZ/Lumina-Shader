@@ -11,7 +11,7 @@ shared = ["common.wgsl", "lib/fog.wgsl"]
 [sky]
 file = "sky.wgsl"
 name = "Warm Horizon Sky"
-clouds = false
+clouds = true
 stars = false
 sun = false
 
