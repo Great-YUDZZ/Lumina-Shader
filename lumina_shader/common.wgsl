@@ -54,16 +54,20 @@ fn noise2d(p: vec2<f32>) -> f32 {
 }
 
 // 1-octave ultra-lightweight mathematical cloud shadow (fast 0.01 ms execution)
+// Projected flat on ground XZ with distance fade (< 48 blocks) to prevent zebra banding on cliffs
 fn sample_cloud_shadow(world_pos: vec3<f32>, sky_light: f32) -> f32 {
-    if frame.dimension != 0 || sky_light < 0.10 || frame.light_direction.y <= 0.02 {
+    let cam_dist = length(world_pos.xz - frame.camera_position.xz);
+    if frame.dimension != 0 || sky_light < 0.10 || frame.light_direction.y <= 0.02 || cam_dist >= 48.0 {
         return 1.0;
     }
-    let cloud_alt = 192.0;
-    let ray_t = max(0.0, (cloud_alt - world_pos.y) / max(frame.light_direction.y, 0.08));
+    // Projected flatly from nominal cloud altitude (192) using sea level (64)
+    // so vertical cliff faces don't slice across noise and create zebra stripes!
+    let ray_t = max(0.0, (192.0 - 64.0) / max(frame.light_direction.y, 0.15));
     let shadow_pos = (world_pos.xz + frame.light_direction.xz * ray_t) * 0.0035 + vec2<f32>(frame.time * 0.015, frame.time * 0.006);
     let n = noise2d(shadow_pos);
-    let shadow = smoothstep(0.55, 0.75, n) * 0.35;
-    return 1.0 - shadow;
+    let raw_shadow = smoothstep(0.48, 0.82, n) * 0.32;
+    let dist_fade = 1.0 - smoothstep(28.0, 48.0, cam_dist);
+    return 1.0 - raw_shadow * dist_fade;
 }
 
 // Direct light color (sun by day, moon by night) with rich Golden Hour and cozy slate-blue rain.

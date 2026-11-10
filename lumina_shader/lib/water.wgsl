@@ -10,6 +10,11 @@ override aurora_strength: f32 = 0.85;
 
 // Gentle micro-ripple normal perturbation for realistic sun/moon glistening
 fn water_wave_normal(world_pos: vec3<f32>, base_normal: vec3<f32>, dist: f32) -> vec3<f32> {
+    let wave_fade = 1.0 - smoothstep(16.0, 48.0, dist);
+    if wave_fade <= 0.001 {
+        return base_normal;
+    }
+
     let t = frame.time;
     let p = world_pos.xz;
 
@@ -22,7 +27,7 @@ fn water_wave_normal(world_pos: vec3<f32>, base_normal: vec3<f32>, dist: f32) ->
     let phase2 = dot(p, d2) * 1.6 - t * 1.7;
     let c2 = cos(phase2);
 
-    let deriv = (d1 * c1 * 0.022 + d2 * c2 * 0.016) / (1.0 + dist * 0.035);
+    let deriv = (d1 * c1 * 0.022 + d2 * c2 * 0.016) * wave_fade;
     if abs(base_normal.y) > 0.5 {
         return normalize(vec3<f32>(-deriv.x, 1.0, -deriv.y));
     }
@@ -49,10 +54,6 @@ fn shade_water(input: MaterialInput, shadow_vis: vec3<f32>) -> Surface {
     let direct_col = direct_light_color(sun_warmth) * max(dot(wave_n, frame.light_direction), 0.0) * shadow_vis;
     var lit_water = vanilla_base * (ambient_sky + direct_col * 0.85) + blk_light;
 
-    // Gentle cloud shadow factor
-    let cloud_sh = sample_cloud_shadow(world_pos, input.light.y);
-    lit_water *= cloud_sh;
-
     // Sky reflection (subtle Fresnel)
     let refl_dir = reflect(-view_dir, wave_n);
     let refl_up = clamp(refl_dir.y, 0.0, 1.0);
@@ -69,11 +70,14 @@ fn shade_water(input: MaterialInput, shadow_vis: vec3<f32>) -> Surface {
     let ndotv = max(dot(wave_n, view_dir), 0.0);
     let fresnel = clamp(0.04 + 0.65 * pow(1.0 - ndotv, 5.0), 0.0, 0.75);
 
-    // Crisp dual-lobe sun and moon specular highlight
+    // Smooth distance-adaptive sun and moon specular highlight:
+    // Tight glittering lobe near player, fading into a wide calm sheen at distance (>24 blocks)
+    // to prevent specular aliasing and stair-step banding.
     let half_vec = normalize(view_dir + frame.light_direction);
     let ndoth = max(dot(wave_n, half_vec), 0.0);
-    let spec_tight = pow(ndoth, 190.0) * 2.20;
-    let spec_wide = pow(ndoth, 24.0) * 0.25;
+    let tight_fade = 1.0 - smoothstep(20.0, 48.0, dist);
+    let spec_tight = pow(ndoth, 140.0) * 1.80 * tight_fade;
+    let spec_wide = pow(ndoth, 18.0) * 0.28;
     let sun_glitter = (spec_tight + spec_wide) * direct_light_color(sun_warmth) * shadow_vis * water_specular * (1.0 - frame.rain * 0.85);
 
     // Combine vanilla water with subtle sky reflection and sun/moon sparkle

@@ -3,9 +3,12 @@
 // colored block & handheld torch lights, emissive blocks, glowing ores, and crystal water.
 
 fn material(input: MaterialInput) -> Surface {
-    // Early-out for transparent cutout texels (leaves, vines, grass, ferns, flowers) BEFORE
-    // running shadow PCF or 3D block light lookups.
-    if !input.translucent && input.albedo.a < 0.5 {
+    let dist = length(input.position);
+
+    // Distance-adaptive alpha cutoff: prevents distant foliage and cutout blocks (leaves, vines, ferns)
+    // from disintegrating into noisy speckled holes due to mipmap texture averaging.
+    let alpha_cutoff = clamp(0.50 - smoothstep(12.0, 72.0, dist) * 0.28, 0.22, 0.50);
+    if !input.translucent && input.albedo.a < alpha_cutoff {
         return Surface(vec4<f32>(0.0));
     }
 
@@ -13,8 +16,7 @@ fn material(input: MaterialInput) -> Surface {
     let l = frame.light_direction;
     let facing = dot(n, l);
 
-    // Water surfaces take the dedicated emerald-blue glassy water path
-    // Sample water sun shadow and cloud shadow
+    // Water surfaces take the dedicated vanilla-specular water path
     if input.fluid == 1u {
         var water_sh = vec3<f32>(1.0);
         if frame.rain < 0.80 && dot(input.position, input.position) < 1296.0 {
@@ -32,7 +34,6 @@ fn material(input: MaterialInput) -> Surface {
         return Surface(vec4<f32>(lava_col, input.albedo.a));
     }
 
-    let dist = length(input.position);
     let view_dir = input.position / max(dist, 1e-4);
 
     if frame.dimension != 0 {

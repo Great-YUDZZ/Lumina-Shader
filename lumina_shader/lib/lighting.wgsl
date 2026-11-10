@@ -43,10 +43,10 @@ fn sample_shadow_fast(p: vec3<f32>, offset_dir: vec3<f32>) -> vec3<f32> {
 
     let m = frame.shadow_view_proj;
     let zscale = length(vec3<f32>(m[0].z, m[1].z, m[2].z));
-    let z = s.z - zscale * ground * 1.8;
+    let z = s.z - zscale * ground * 2.5;
 
     let lit = textureSampleCompareLevel(shadow_map, shadow_sampler, s.xy, z);
-    let fade = smoothstep(0.85, 1.0, dist / frame.shadow_distance);
+    let fade = smoothstep(0.70, 1.0, dist / frame.shadow_distance);
     return vec3<f32>(mix(lit, 1.0, fade));
 }
 
@@ -65,14 +65,14 @@ fn sample_shadow(p: vec3<f32>, offset_dir: vec3<f32>, ndl: f32) -> vec3<f32> {
     let ground = shadow_texel(p);
     let c = clamp(ndl, 0.06, 1.0);
     let slope = min(sqrt(1.0 - c * c) / c, 10.0);
-    let s = shadow_position(p + offset_dir * ground * (1.5 + min(slope, 3.5)));
+    let s = shadow_position(p + offset_dir * ground * (1.6 + min(slope, 3.5)));
     if any(s.xy <= vec2<f32>(0.002)) || any(s.xy >= vec2<f32>(0.998)) {
         return vec3<f32>(1.0);
     }
 
     let m = frame.shadow_view_proj;
     let zscale = length(vec3<f32>(m[0].z, m[1].z, m[2].z));
-    let z = s.z - zscale * ground * (1.2 + 2.2 * slope);
+    let z = s.z - zscale * ground * (1.5 + 2.8 * slope);
 
     var lit = 0.0;
     if dist < 20.0 {
@@ -84,7 +84,7 @@ fn sample_shadow(p: vec3<f32>, offset_dir: vec3<f32>, ndl: f32) -> vec3<f32> {
         lit = textureSampleCompareLevel(shadow_map, shadow_sampler, s.xy, z);
     }
 
-    let fade = smoothstep(0.85, 1.0, dist / frame.shadow_distance);
+    let fade = smoothstep(0.70, 1.0, dist / frame.shadow_distance);
     return vec3<f32>(mix(lit, 1.0, fade));
 }
 
